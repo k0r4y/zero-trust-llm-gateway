@@ -4,25 +4,17 @@ services:
     container_name: ollama-server
     restart: unless-stopped
     environment:
-      # Allows Ollama to process up to 2 concurrent inference streams simultaneously
       - OLLAMA_NUM_PARALLEL=2
-      # Keeps up to 2 distinct models pinned in GPU VRAM (e.g. coding + embeddings)
-      # to prevent aggressive model evictions and 10s reload latency spikes.
       - OLLAMA_MAX_LOADED_MODELS=2
-      # Extends memory retention to 15m idle before unloading weights from VRAM
       - OLLAMA_KEEP_ALIVE=15m
     volumes:
-      # Reuses the exact named volume where DeepSeek and Qwen are already stored
       - ollama_data:/root/.ollama
     networks:
-      # Attached ONLY to internal bridge; no host port mapping exists here.
-      # This prevents any direct bypass of the LiteLLM authentication layer.
       - llm-net
     deploy:
       resources:
         reservations:
           devices:
-            # Passes the NVIDIA GPU from the Windows/WSL2 host into the container
             - driver: nvidia
               count: all
               capabilities: [gpu]
@@ -32,29 +24,38 @@ services:
     container_name: litellm-proxy
     restart: unless-stopped
     volumes:
-      # Mounts the routing and model mapping file as read-only for security
       - ./config/litellm-config.yaml:/app/config.yaml:ro
     environment:
-      # Injected from compose/.env
       - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
     command: ["--config", "/app/config.yaml", "--port", "4000"]
-    ports:
-      # Bound to localhost (127.0.0.1) ONLY for Loop 1 verification.
-      # (In Loop 2, this port will be closed from the host and placed behind Nginx).
-      - "127.0.0.1:4000:4000"
+    # NOTICE: Port 4000 host mapping is removed! 
+    # LiteLLM is now strictly reachable internally via Nginx.
     networks:
       - llm-net
     depends_on:
       - ollama-server
 
+  nginx-ingress:
+    image: nginx:alpine
+    container_name: nginx-ingress
+    restart: unless-stopped
+    volumes:
+      # Mount Nginx reverse proxy configuration as read-only
+      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      # Standard HTTPS port for corporate/firewall compatibility
+      - "443:443"
+      # Legacy Ollama port for client backwards compatibility
+      - "11434:11434"
+    networks:
+      - llm-net
+    depends_on:
+      - litellm-proxy
+
 volumes:
   ollama_data:
-    # CRITICAL: 'external: true' tells Docker Compose to use the pre-existing
-    # volume named 'ollama_data' instead of prefixing it as 'compose_ollama_data',
-    # preventing the redownload of ~15GB of model weights.
     external: true
 
 networks:
   llm-net:
-    # User-defined bridge network providing automatic internal container DNS resolution
     driver: bridge

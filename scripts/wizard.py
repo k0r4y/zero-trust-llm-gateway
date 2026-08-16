@@ -7,11 +7,24 @@ import os
 import sys
 import shutil
 import subprocess
+import secrets
 
 def print_banner():
     print("=" * 64)
     print("   ZERO-TRUST LOCAL LLM PLATFORM - ONBOARDING WIZARD")
     print("=" * 64)
+
+def ensure_local_secrets():
+    """Ensures local compose/.env and Age keys exist for fresh clones."""
+    env_path = os.path.expanduser("~/llm-platform-iac/compose/.env")
+    if not os.path.exists(env_path):
+        print("[*] Fresh installation detected. Initializing local secrets...")
+        token = "sk-" + secrets.token_hex(16)
+        os.makedirs(os.path.dirname(env_path), exist_ok=True)
+        with open(env_path, "w") as f:
+            f.write(f"# Auto-generated local environment secrets\n")
+            f.write(f"LITELLM_MASTER_KEY={token}\n")
+        print(f"  --> [✔] Generated fresh local API token: {token}")
 
 def detect_gpu():
     """Detects NVIDIA GPU model and total VRAM in Gigabytes using nvidia-smi."""
@@ -54,6 +67,7 @@ def get_tailscale_ip():
 
 def main():
     print_banner()
+    ensure_local_secrets()
     vram_gb, gpu_name = detect_gpu()
     tier_name, models = recommend_tier(vram_gb)
     
@@ -62,7 +76,7 @@ def main():
     print(f"    Models: {', '.join(models)}")
     
     tailscale_ip = get_tailscale_ip()
-    print(f"    Network: Tailscale IP detected as {tailscale_ip}")
+    print(f"    Network: Host IP detected as {tailscale_ip}")
     
     confirm = input("\n[?] Apply this configuration and launch stack? [Y/n]: ").strip().lower()
     if confirm in ["n", "no"]:
@@ -88,9 +102,10 @@ def main():
         f.write('  master_key: "os.environ/LITELLM_MASTER_KEY"\n')
     print("  --> [✔] Generated compose/config/litellm-config.yaml")
 
-    # 2. Start stack via task up
-    print("\n[*] Starting LLM Platform containers...")
-    subprocess.run(["task", "up"], check=True)
+    # 2. Start stack via docker compose
+    print("\n[*] Starting LLM Platform containers via Docker Compose...")
+    compose_file = os.path.expanduser("~/llm-platform-iac/compose/docker-compose.yml")
+    subprocess.run(["docker", "compose", "-f", compose_file, "up", "-d"], check=True)
     
     # 3. Pull recommended models in background
     print("\n[*] Pulling recommended models into Ollama (this may take a few minutes)...")

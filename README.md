@@ -89,7 +89,7 @@ curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dear
 sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
 sudo nvidia-ctk runtime configure --runtime=docker
 
-# 4. Enable systemd in WSL2 for automatic background Docker start (Optional but recommended)
+# 4. Enable systemd in WSL2 for automatic background Docker start
 sudo bash -c "cat << EOF > /etc/wsl.conf
 [boot]
 systemd=true
@@ -128,13 +128,6 @@ cd llm-platform-iac
 
 *(On Windows, you can alternatively double-click **`setup.bat`** from Windows Explorer).*
 
-#### What the Setup Wizard Does Automatically:
-* Inspects host GPU VRAM via `nvidia-smi` (or configures CPU fallback mode for low-spec hosts).
-* Generates fresh local API keys and environment variables in `compose/.env`.
-* Configures `compose/config/litellm-config.yaml` with recommended models.
-* Launches all 4 containers (`ollama-server`, `litellm-proxy`, `open-webui`, `nginx-ingress`).
-* Pulls recommended model weights in the background.
-
 ---
 
 ## 3. Daily Operations & Taskfile Commands
@@ -143,6 +136,7 @@ All day-to-day lifecycle tasks are managed via `Taskfile`:
 
 | Command | Purpose |
 | :--- | :--- |
+| **`task credentials`** | **Displays active WebUI URLs, API endpoints, and Bearer Tokens.** |
 | **`task up`** | Decrypts secrets and starts all 4 platform containers in the background. |
 | **`task down`** | Safely stops and pauses all stack containers without deleting data. |
 | **`task ps`** | Displays container health, status, and uptime. |
@@ -154,7 +148,7 @@ All day-to-day lifecycle tasks are managed via `Taskfile`:
 
 ## 4. Connecting Client Devices (Work Laptop / Remote)
 
-Once the host server is running, remote devices on the Tailscale network can connect using standard tools.
+Run `task credentials` on the host to view your exact Tailscale IP and API token.
 
 ### Option A: Web Chat Interface (Open WebUI)
 Open your browser on your work laptop and navigate to:
@@ -257,6 +251,6 @@ task tofu:apply    # Applies zero-trust rules live
 | **`Error 0x80370102` on WSL launch** | CPU Virtualization disabled in BIOS. | Enter motherboard BIOS/UEFI and enable **Intel VT-x** or **AMD SVM Mode**. |
 | **`could not select device driver "" with capabilities: [[gpu]]`** | Docker missing NVIDIA Container Toolkit. | Run Step 2.2 commands to install `nvidia-container-toolkit` and restart Docker. |
 | **`Cannot connect to the Docker daemon`** | Docker service not started in WSL2. | Run `sudo service docker start` (or enable `systemd=true` in `/etc/wsl.conf`). |
-| **`HTTP 401 Unauthorized` on `/v1/models`** | Missing or incorrect Bearer token. | Pass header `-H "Authorization: Bearer <token>"`. Check token in `compose/.env`. |
+| **`HTTP 401 Unauthorized` on `/v1/models`** | Missing or incorrect Bearer token. | Pass header `-H "Authorization: Bearer <token>"`. Run `task credentials` to see your token. |
 | **Connection timed out from work laptop** | Tailscale ACL or incorrect port. | Ensure connecting to port `:443` or `:11434` (e.g. `http://100.x.x.x:443/`). Ensure laptop has `tag:work-laptop`. |
 | **`failed to decrypt: no matching age key found`** | Fresh clone without host private key. | Run `./setup.sh` or `python3 scripts/wizard.py` to auto-generate fresh local keys. |

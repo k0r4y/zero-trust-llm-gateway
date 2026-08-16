@@ -59,6 +59,13 @@ services:
       - WEBUI_AUTH=true
       - ENABLE_SIGNUP=true
       - DEFAULT_MODELS=deepseek-r1:7b
+      - ENABLE_RAG_WEB_SEARCH=true
+      - RAG_WEB_SEARCH_ENGINE=searxng
+      - SEARXNG_QUERY_URL=http://searxng:8080/search?q=<query>
+      - ENABLE_CODE_EXECUTION=true
+      - CODE_EXECUTION_ENGINE=jupyter
+      - CODE_EXECUTION_JUPYTER_URL=http://jupyter:8888
+      - CODE_EXECUTION_JUPYTER_AUTH_TOKEN=${JUPYTER_TOKEN}
     networks:
       - llm-net
     depends_on:
@@ -85,6 +92,34 @@ services:
     depends_on:
       - open-webui
       - litellm-proxy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  searxng:
+    image: docker.io/searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    volumes:
+      - ./config/searxng:/etc/searxng:rw
+    networks:
+      - llm-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  jupyter:
+    image: jupyter/scipy-notebook:latest
+    container_name: jupyter
+    restart: unless-stopped
+    environment:
+      - JUPYTER_TOKEN=${JUPYTER_TOKEN}
+    networks:
+      - llm-net
     logging:
       driver: "json-file"
       options:

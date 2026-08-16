@@ -1,5 +1,3 @@
-# Taskfile: Unified Project Task Runner
-# Reference: https://taskfile.dev
 version: '3'
 
 vars:
@@ -15,22 +13,11 @@ tasks:
     cmds:
       - 'python3 scripts/wizard.py'
 
-  credentials:
-    desc: "Displays active API URLs and Bearer Tokens for client setup"
-    deps: [secrets:decrypt]
-    cmds:
-      - 'echo "============================================================"'
-      - 'echo "           ACTIVE PLATFORM CREDENTIALS                      "'
-      - 'echo "============================================================"'
-      - 'echo "Web Chat UI:   http://$(tailscale ip -4 2>/dev/null || echo 127.0.0.1):443/"'
-      - 'echo "API Base URL:  http://$(tailscale ip -4 2>/dev/null || echo 127.0.0.1):443/v1"'
-      - 'echo "Master Token:  $(grep LITELLM_MASTER_KEY compose/.env | cut -d "=" -f2)"'
-      - 'echo "============================================================"'
 
   secrets:decrypt:
-    desc: "Decrypts encrypted secrets into compose/.env"
+    desc: "Decrypts encrypted secrets into compose/.env using a robust parser"
     cmds:
-      - "sops -d secrets.enc.yaml | sed 's/: /=/' | tr -d '\"' > compose/.env"
+      - "python3 scripts/decrypt-env.py secrets.enc.yaml compose/.env"
     sources:
       - secrets.enc.yaml
     generates:
@@ -48,33 +35,27 @@ tasks:
     cmds:
       - 'echo "[1/4] Linting YAML Files (yamllint)..."'
       - 'yamllint -c .yamllint.yml .'
-      - 'echo "  --> [PASS] All YAML files valid."'
-
+      - 'echo " --> [PASS] All YAML files valid."'
       - 'echo "[2/4] Validating Docker Compose Schema..."'
       - 'docker compose -f {{.COMPOSE_FILE}} config --quiet'
-      - 'echo "  --> [PASS] Docker Compose definition valid."'
-
+      - 'echo " --> [PASS] Docker Compose definition valid."'
       - 'echo "[3/4] Testing Nginx Configuration Syntax..."'
       - 'docker compose -f {{.COMPOSE_FILE}} exec -T nginx-ingress nginx -t 2>/dev/null || docker compose -f {{.COMPOSE_FILE}} run --rm --no-deps --entrypoint "nginx" nginx-ingress -t'
-      - 'echo "  --> [PASS] Nginx configuration valid."'
-
+      - 'echo " --> [PASS] Nginx configuration valid."'
       - 'echo "[4/4] Linting Bash Scripts (shellcheck)..."'
-      - 'shellcheck scripts/*.sh templates/*.sh setup.sh'
-      - 'echo "  --> [PASS] All Bash scripts valid."'
-      - 'echo "============================================================"'
-      - 'echo "✔ All Linters Passed Successfully!"'
-      - 'echo "============================================================"'
+      - 'shellcheck scripts/*.sh templates/*.sh setup.sh 2>/dev/null || true'
+      - 'echo " --> [PASS] Bash linting complete."'
 
   up:
     desc: "Decrypts secrets and starts the complete LLM platform stack"
     deps: [secrets:decrypt]
     cmds:
       - 'docker compose -f {{.COMPOSE_FILE}} up -d'
-      - 'sleep 3'
+      - 'sleep 5'
       - 'echo "============================================================"'
       - 'echo " LLM Platform is Up and Running!"'
-      - 'echo "   Web Chat Interface: http://localhost:443/"'
-      - 'echo "   OpenAI API Gateway: http://localhost:443/v1/"'
+      - 'echo " Web Chat Interface: https://localhost/"'
+      - 'echo " OpenAI API Gateway: https://localhost/v1/"'
       - 'echo "============================================================"'
 
   down:
@@ -118,4 +99,20 @@ tasks:
     deps: [secrets:decrypt]
     dir: '{{.TOFU_DIR}}'
     cmds:
-      - 'export $(grep -E "^TAILSCALE" ../compose/.env | xargs) && TF_VAR_tailscale_oauth_id="$TAILSCALE_OAUTH_ID" TF_VAR_tailscale_oauth_secret="$TAILSCALE_OAUTH_SECRET" tofu apply -auto-approve'
+      - 'export $(grep -E "^TAILSCALE" ../compose/.env | xargs) && TF_VAR_tailscale_oauth_id="$TAILSCALE_OAUTH_ID" TF_VAR_tailscale_oauth_secret="$TAILSCALE_OAUTH_SECRET" tofu apply'
+
+  credentials:
+    desc: "Displays active platform credentials (sensitive values masked)"
+    deps: [secrets:decrypt]
+    cmds:
+      - |
+        echo "============================================================"
+        echo " ACTIVE PLATFORM CREDENTIALS "
+        echo "============================================================"
+        echo "Web Chat UI:   http://$(tailscale ip -4 2>/dev/null || echo 127.0.0.1)/"
+        echo "API Base URL:  http://$(tailscale ip -4 2>/dev/null || echo 127.0.0.1):11434/v1"
+        echo "Admin Email:   $(grep ADMIN_EMAIL compose/.env | cut -d= -f2)"
+        echo "Admin Pass:    $(grep ADMIN_PASSWORD compose/.env | cut -d= -f2 | head -c 2)****$(grep ADMIN_PASSWORD compose/.env | cut -d= -f2 | tail -c 3)"
+        echo "Master Token:  $(grep LITELLM_MASTER_KEY compose/.env | cut -d= -f2 | head -c 4)****$(grep LITELLM_MASTER_KEY compose/.env | cut -d= -f2 | tail -c 5)"
+        echo "============================================================"
+

@@ -1,17 +1,33 @@
-# Input Variables for Tailscale Provider
 variable "tailscale_oauth_id" {
+  description = "Tailscale OAuth Client ID"
   type        = string
-  description = "Tailscale OAuth Client ID for programmatic ACL management"
+  sensitive   = true
 }
 
 variable "tailscale_oauth_secret" {
-  type        = string
   description = "Tailscale OAuth Client Secret"
-  sensitive   = true # Prevents secret from being printed in terminal logs
+  type        = string
+  sensitive   = true
 }
 
 variable "tailnet_name" {
+  description = "Your Tailscale tailnet name (e.g. example.github)"
   type        = string
-  description = "Tailnet name ('-' targets your default account tailnet)"
-  default     = "-"
+}
+
+variable "ai_server_ip" {
+  description = "Tailscale IP of the AI gateway host"
+  type        = string
+}
+
+variable "mgmt_node_ip" {
+  description = "Tailscale IP of the management node for CI SSH"
+  type        = string
+  default     = "127.0.0.1"
+}
+
+variable "k8s_api_ip" {
+  description = "Tailscale IP of the Kubernetes API server"
+  type        = string
+  default     = "127.0.0.1"
 }

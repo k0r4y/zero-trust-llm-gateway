@@ -20,3 +20,25 @@ key.txt
 __pycache__/
 *.log
 .task/
+dist/
+secrets.enc.yaml
+.sops.yaml
+
+# Generated secrets and runtime configs
+tofu/terraform.tfvars
+templates/setup-receipt.txt
+templates/vscode-continue.json
+templates/obsidian.md
+templates/aider.sh
+
+# Backups and temp files
+*.backup
+*.backup.*
+.backup/
+.test-backups/
+fix-everything.sh
+rotate-keys.sh
+
+# TLS private keys
+compose/certs/*.key
+tofu/.terraform/

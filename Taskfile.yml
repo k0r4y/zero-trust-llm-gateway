@@ -10,6 +10,11 @@ env:
   SOPS_AGE_KEY_FILE: '{{.HOME}}/.age/key.txt'
 
 tasks:
+  init:
+    desc: "Runs interactive hardware-profiling wizard and bootstraps the stack"
+    cmds:
+      - 'python3 scripts/wizard.py'
+
   secrets:decrypt:
     desc: "Decrypts encrypted secrets into compose/.env"
     cmds:
@@ -42,7 +47,7 @@ tasks:
       - 'echo "  --> [PASS] Nginx configuration valid."'
 
       - 'echo "[4/4] Linting Bash Scripts (shellcheck)..."'
-      - 'shellcheck scripts/*.sh'
+      - 'shellcheck scripts/*.sh templates/*.sh'
       - 'echo "  --> [PASS] All Bash scripts valid."'
       - 'echo "============================================================"'
       - 'echo "✔ All Linters Passed Successfully!"'

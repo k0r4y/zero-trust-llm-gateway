@@ -1,0 +1,26 @@
+{
+  "$schema": "https://continue.dev/config.json.schema",
+  "models": [
+    {
+      "title": "Local DeepSeek R1 (Reasoning)",
+      "provider": "openai",
+      "model": "deepseek-r1:14b",
+      "apiBase": "http://100.107.215.58:443/v1",
+      "apiKey": "sk-trainee-test-token-12345"
+    },
+    {
+      "title": "Local Qwen Coder (Fast Coding)",
+      "provider": "openai",
+      "model": "qwen2.5-coder:7b",
+      "apiBase": "http://100.107.215.58:443/v1",
+      "apiKey": "sk-trainee-test-token-12345"
+    }
+  ],
+  "tabAutocompleteModel": {
+    "title": "Local Autocomplete",
+    "provider": "openai",
+    "model": "qwen2.5-coder:7b",
+    "apiBase": "http://100.107.215.58:443/v1",
+    "apiKey": "sk-trainee-test-token-12345"
+  }
+}

@@ -1,27 +1,23 @@
-# LiteLLM Proxy Configuration: Translates OpenAI API requests to Ollama backends
+# Auto-generated LiteLLM Configuration from Onboarding Wizard
 model_list:
-  - model_name: deepseek-r1:14b # Client-facing alias used in OpenAI API calls
+  - model_name: deepseek-r1:7b
     litellm_params:
-      model: ollama/deepseek-r1:14b # Backend provider prefix and model tag
-      # Internal Docker DNS name; resolves directly across the 'llm-net' bridge
+      model: ollama/deepseek-r1:7b
       api_base: http://ollama-server:11434
 
-  - model_name: qwen2.5-coder:7b # Coding model for Continue.dev and Aider
+  - model_name: qwen2.5-coder:7b
     litellm_params:
       model: ollama/qwen2.5-coder:7b
       api_base: http://ollama-server:11434
 
-  - model_name: nomic-embed-text # Dense vector embedding model for Obsidian RAG
+  - model_name: nomic-embed-text
     litellm_params:
       model: ollama/nomic-embed-text
       api_base: http://ollama-server:11434
 
 litellm_settings:
-  # Drops parameters sent by OpenAI clients that Ollama does not natively support
   drop_params: true
-  # Extended timeout for DeepSeek-R1 reasoning chains
   request_timeout: 600
 
 general_settings:
-  # Loads the master authentication key dynamically from the container environment
   master_key: "os.environ/LITELLM_MASTER_KEY"

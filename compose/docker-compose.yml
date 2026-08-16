@@ -103,6 +103,8 @@ services:
     image: docker.io/searxng/searxng:latest
     container_name: searxng
     restart: unless-stopped
+    environment:
+      - SEARXNG_SECRET_KEY=${SEARXNG_SECRET_KEY}
     volumes:
       - ./config/searxng:/etc/searxng:rw
     networks:

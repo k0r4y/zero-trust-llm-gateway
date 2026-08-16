@@ -324,6 +324,7 @@ def generate_local_secrets():
     "WEBUI_SECRET_KEY": secrets.token_hex(32),
     "WEBUI_INIT_ADMIN_EMAIL": "admin@localhost.local",
     "WEBUI_INIT_ADMIN_PASSWORD": secrets.token_urlsafe(16),
+    "SEARXNG_SECRET_KEY": secrets.token_hex(32),
     }
     print(f"    [✔] LiteLLM master key:  {mask_token(secrets_map['LITELLM_MASTER_KEY'])}")
     print(f"    [✔] WebUI secret key:    {mask_token(secrets_map['WEBUI_SECRET_KEY'])}")

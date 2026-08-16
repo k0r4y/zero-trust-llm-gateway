@@ -4,7 +4,7 @@ A production-grade, self-hosted Local LLM infrastructure running on NVIDIA GPUs 
 
 ---
 
-## 1. Target Architecture & Topology
+## 1. Architecture & Topology
 
 ```text
                CLIENT TIER (Work Laptop / Remote Devices)
@@ -43,28 +43,36 @@ A production-grade, self-hosted Local LLM infrastructure running on NVIDIA GPUs 
 Follow these steps on the Windows machine with the NVIDIA GPU that will act as the compute server.
 
 ### Step 2.1: Windows Prerequisites & GPU Drivers
-1. **Install NVIDIA Drivers:**
+1. **Install NVIDIA Host Drivers:**
    * Download and install the latest **NVIDIA GeForce Game Ready or Studio Driver** from [nvidia.com/drivers](https://www.nvidia.com/drivers).
-   * *(WSL2 automatically supports CUDA passthrough using the native Windows NVIDIA driver—do NOT install a separate Linux display driver inside WSL2).*
+   * *(Note: WSL2 automatically passes GPU compute to Linux via the Windows driver—do NOT install a Linux display driver inside WSL2).*
 
-2. **Prevent Windows Sleep/Hibernation (Compute Host Mode):**
+2. **Verify Hardware Virtualization (BIOS):**
+   * Ensure CPU Virtualization (**Intel VT-x** or **AMD SVM Mode**) is enabled in your motherboard BIOS.
+   * *(If disabled, WSL will fail with error `0x80370102`).*
+
+3. **Prevent Windows Sleep (Compute Host Mode):**
    * Open **PowerShell (as Administrator)** and run:
 ```powershell
 powercfg /change standby-timeout-ac 0
 powercfg /change hibernate-timeout-ac 0
 ```
 
-3. **Install WSL2 (Windows Subsystem for Linux):**
-   * In PowerShell (Admin), install Ubuntu:
+4. **Install and Update WSL2:**
+   * In PowerShell (Admin), update the WSL store kernel and install Ubuntu:
 ```powershell
+# Update WSL to the latest store kernel (ensures Direct3D/CUDA compute drivers are active)
+wsl --update
+
+# Install Ubuntu LTS on WSL2
 wsl --install -d Ubuntu
 ```
-   * Restart your PC if prompted. When Ubuntu opens, set your Linux username and password.
+   * *(If prompted, restart your PC to finalize hypervisor features, then launch Ubuntu from the Start Menu to create your Linux user account).*
 
 ---
 
-### Step 2.2: Install Docker & Utilities in WSL2
-Open your **Ubuntu terminal (WSL2)** and install Docker Engine, Git, and dependencies:
+### Step 2.2: Install Docker & NVIDIA Container Toolkit in WSL2
+Open your **Ubuntu terminal (WSL2)** and execute this one-time setup:
 
 ```bash
 # 1. Update package lists and install base utilities
@@ -75,21 +83,34 @@ curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
 sudo usermod -aG docker $USER
 
-# 3. Start Docker daemon
-sudo service docker start
+# 3. Install NVIDIA Container Toolkit (Mandatory for Docker GPU passthrough)
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg   && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list |     sed "s#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g" |     sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
 
-# 4. Install Taskfile CLI
-sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b "$HOME/.local/bin"
-echo "export PATH="$HOME/.local/bin:\$PATH"" >> ~/.bashrc
-export PATH="$HOME/.local/bin:$PATH"
+sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+
+# 4. Enable systemd in WSL2 for automatic background Docker start (Optional but recommended)
+sudo bash -c "cat << EOF > /etc/wsl.conf
+[boot]
+systemd=true
+EOF"
+
+# 5. Start Docker daemon
+sudo service docker start 2>/dev/null || sudo systemctl start docker
+
+# 6. Verify GPU access inside Docker
+docker run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi
 ```
 
 ---
 
-### Step 2.3: Install & Connect Tailscale
-1. Install Tailscale on your Windows desktop from [tailscale.com/download](https://tailscale.com/download) (or inside WSL2 via `curl -fsSL https://tailscale.com/install.sh | sh`).
-2. Log in and connect your machine to your Tailnet.
-3. Note your assigned Tailscale IP address (e.g. `100.107.215.58`).
+### Step 2.3: Connect Host to Tailscale
+1. Download and install Tailscale on Windows from [tailscale.com/download](https://tailscale.com/download) (or inside WSL2 via `curl -fsSL https://tailscale.com/install.sh | sh`).
+2. Log in and connect your host machine to your Tailnet.
+3. Check your assigned Tailscale IP address (e.g., `100.107.215.58`):
+```bash
+tailscale ip -4
+```
 
 ---
 
@@ -108,7 +129,7 @@ cd llm-platform-iac
 *(On Windows, you can alternatively double-click **`setup.bat`** from Windows Explorer).*
 
 #### What the Setup Wizard Does Automatically:
-* Inspects host GPU VRAM via `nvidia-smi` (or configures CPU fallback mode).
+* Inspects host GPU VRAM via `nvidia-smi` (or configures CPU fallback mode for low-spec hosts).
 * Generates fresh local API keys and environment variables in `compose/.env`.
 * Configures `compose/config/litellm-config.yaml` with recommended models.
 * Launches all 4 containers (`ollama-server`, `litellm-proxy`, `open-webui`, `nginx-ingress`).
@@ -145,7 +166,9 @@ Open your browser on your work laptop and navigate to:
 
 ### Option B: VS Code (Continue.dev Coding Agent)
 1. Install the **Continue** extension from the VS Code Marketplace.
-2. Open `~/.continue/config.json` (or `%USERPROFILE%\.continue\config.json` on Windows) on your laptop.
+2. Open your Continue configuration:
+   * **Windows:** `%USERPROFILE%\.continue\config.json`
+   * **macOS / Linux:** `~/.continue/config.json`
 3. Paste the following configuration, replacing `<HOST_TAILSCALE_IP>` and `<YOUR_API_TOKEN>`:
 
 ```json
@@ -227,9 +250,13 @@ task tofu:apply    # Applies zero-trust rules live
 
 ---
 
-## 6. Security Architecture & Secrets Management
+## 6. Troubleshooting & Common Issues
 
-1. **Zero Raw Port Exposure:** Ollama has zero host-bound ports; it is reachable strictly across the internal Docker bridge (`llm-net`) through LiteLLM.
-2. **GitOps Secret Encryption:** Secrets in Git are committed exclusively as `secrets.enc.yaml` encrypted via **Mozilla SOPS + Age** asymmetric keypairs. Raw `.env` files are ignored by Git.
-3. **GPU Compute DoS Protection:** Nginx enforces a shared-memory rate-limiting zone (15 req/s with burst buffers) to prevent runaway client loops from crashing GPU VRAM.
-4. **SSE Real-Time Streaming:** Ingress reverse proxy uses `proxy_buffering off;` and HTTP/1.1 chunking to stream reasoning and code tokens with zero buffer lag.
+| Issue / Error | Cause | Resolution |
+| :--- | :--- | :--- |
+| **`Error 0x80370102` on WSL launch** | CPU Virtualization disabled in BIOS. | Enter motherboard BIOS/UEFI and enable **Intel VT-x** or **AMD SVM Mode**. |
+| **`could not select device driver "" with capabilities: [[gpu]]`** | Docker missing NVIDIA Container Toolkit. | Run Step 2.2 commands to install `nvidia-container-toolkit` and restart Docker. |
+| **`Cannot connect to the Docker daemon`** | Docker service not started in WSL2. | Run `sudo service docker start` (or enable `systemd=true` in `/etc/wsl.conf`). |
+| **`HTTP 401 Unauthorized` on `/v1/models`** | Missing or incorrect Bearer token. | Pass header `-H "Authorization: Bearer <token>"`. Check token in `compose/.env`. |
+| **Connection timed out from work laptop** | Tailscale ACL or incorrect port. | Ensure connecting to port `:443` or `:11434` (e.g. `http://100.x.x.x:443/`). Ensure laptop has `tag:work-laptop`. |
+| **`failed to decrypt: no matching age key found`** | Fresh clone without host private key. | Run `./setup.sh` or `python3 scripts/wizard.py` to auto-generate fresh local keys. |

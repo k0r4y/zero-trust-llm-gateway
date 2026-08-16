@@ -1,0 +1,21 @@
+# Environment files and unencrypted secrets
+.env
+*.env
+compose/.env
+secrets.raw.yaml
+*.key
+*.pem
+key.txt
+
+# OpenTofu / Terraform local state & providers
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+
+# OS & Editor files
+.DS_Store
+*.swp
+__pycache__/
+*.log

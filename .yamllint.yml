@@ -1,0 +1,17 @@
+# Yamllint Configuration File
+extends: default
+
+rules:
+  # Disable strict line-length limit for lengthy comments and URLs
+  line-length: disable
+  # Don't require '---' document-start markers at the top of every file
+  document-start: disable
+  # Ignore truthy values like 'true', 'on', 'yes' in Docker/Taskfile syntax
+  truthy: disable
+  # Allow variable comments indentation
+  comments:
+    min-spaces-from-content: 1
+
+# Ignore encrypted ciphertext files (they contain non-standard base64 blocks)
+ignore:
+  - secrets.enc.yaml

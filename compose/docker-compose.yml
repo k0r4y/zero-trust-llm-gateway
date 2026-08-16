@@ -28,32 +28,47 @@ services:
     environment:
       - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
     command: ["--config", "/app/config.yaml", "--port", "4000"]
-    # NOTICE: Port 4000 host mapping is removed! 
-    # LiteLLM is now strictly reachable internally via Nginx.
     networks:
       - llm-net
     depends_on:
       - ollama-server
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    volumes:
+      # Reuses existing named volume for chat history, user database, and settings
+      - open-webui_data:/app/backend/data
+    environment:
+      # Points Open WebUI to LiteLLM as an OpenAI-compatible backend provider
+      - OPENAI_API_BASE_URL=http://litellm-proxy:4000/v1
+      - OPENAI_API_KEY=${LITELLM_MASTER_KEY}
+      - WEBUI_AUTH=true
+    networks:
+      - llm-net
+    depends_on:
+      - litellm-proxy
 
   nginx-ingress:
     image: nginx:alpine
     container_name: nginx-ingress
     restart: unless-stopped
     volumes:
-      # Mount Nginx reverse proxy configuration as read-only
       - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
-      # Standard HTTPS port for corporate/firewall compatibility
       - "443:443"
-      # Legacy Ollama port for client backwards compatibility
       - "11434:11434"
     networks:
       - llm-net
     depends_on:
+      - open-webui
       - litellm-proxy
 
 volumes:
   ollama_data:
+    external: true
+  open-webui_data:
     external: true
 
 networks:

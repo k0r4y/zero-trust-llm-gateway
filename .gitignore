@@ -19,3 +19,4 @@ key.txt
 *.swp
 __pycache__/
 *.log
+.task/

@@ -17,11 +17,9 @@ model_list:
       api_base: http://ollama-server:11434
 
 litellm_settings:
-  # Drops parameters sent by OpenAI clients that Ollama does not natively support,
-  # preventing 400 Bad Request errors from unhandled arguments.
+  # Drops parameters sent by OpenAI clients that Ollama does not natively support
   drop_params: true
-  
-  # DeepSeek-R1 reasoning chains can take minutes; 600s prevents mid-generation timeouts.
+  # Extended timeout for DeepSeek-R1 reasoning chains
   request_timeout: 600
 
 general_settings:

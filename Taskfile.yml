@@ -1,0 +1,106 @@
+# Taskfile: Unified Project Task Runner
+# Reference: https://taskfile.dev
+version: '3'
+
+vars:
+  COMPOSE_FILE: compose/docker-compose.yml
+  TOFU_DIR: tofu
+
+env:
+  SOPS_AGE_KEY_FILE: '{{.HOME}}/.age/key.txt'
+
+tasks:
+  secrets:decrypt:
+    desc: "Decrypts encrypted secrets into compose/.env"
+    cmds:
+      - "sops -d secrets.enc.yaml | sed 's/: /=/' > compose/.env"
+    sources:
+      - secrets.enc.yaml
+    generates:
+      - compose/.env
+    silent: true
+
+  secrets:encrypt:
+    desc: "Encrypts compose/.env back into secrets.enc.yaml"
+    cmds:
+      - "sops -e compose/.env > secrets.enc.yaml"
+
+  lint:
+    desc: "Runs automated linting across YAMLs, Compose schemas, Nginx configs, and Bash scripts"
+    deps: [secrets:decrypt]
+    cmds:
+      - 'echo "[1/4] Linting YAML Files (yamllint)..."'
+      - 'yamllint -c .yamllint.yml .'
+      - 'echo "  --> [PASS] All YAML files valid."'
+
+      - 'echo "[2/4] Validating Docker Compose Schema..."'
+      - 'docker compose -f {{.COMPOSE_FILE}} config --quiet'
+      - 'echo "  --> [PASS] Docker Compose definition valid."'
+
+      - 'echo "[3/4] Testing Nginx Configuration Syntax..."'
+      - 'docker compose -f {{.COMPOSE_FILE}} exec -T nginx-ingress nginx -t 2>/dev/null || docker compose -f {{.COMPOSE_FILE}} run --rm --no-deps --entrypoint "nginx" nginx-ingress -t'
+      - 'echo "  --> [PASS] Nginx configuration valid."'
+
+      - 'echo "[4/4] Linting Bash Scripts (shellcheck)..."'
+      - 'shellcheck scripts/*.sh'
+      - 'echo "  --> [PASS] All Bash scripts valid."'
+      - 'echo "============================================================"'
+      - 'echo "✔ All Linters Passed Successfully!"'
+      - 'echo "============================================================"'
+
+  up:
+    desc: "Decrypts secrets and starts the complete LLM platform stack"
+    deps: [secrets:decrypt]
+    cmds:
+      - 'docker compose -f {{.COMPOSE_FILE}} up -d'
+      - 'echo "============================================================"'
+      - 'echo " LLM Platform is Up and Running!"'
+      - 'echo "   Web Chat Interface: http://localhost:443/"'
+      - 'echo "   OpenAI API Gateway: http://localhost:443/v1/"'
+      - 'echo "============================================================"'
+
+  down:
+    desc: "Stops and pauses all platform stack containers"
+    cmds:
+      - 'docker compose -f {{.COMPOSE_FILE}} down'
+
+  ps:
+    desc: "Displays container status and health"
+    cmds:
+      - 'docker compose -f {{.COMPOSE_FILE}} ps'
+
+  test:e2e:
+    desc: "Runs automated end-to-end integration and auth test suite"
+    deps: [secrets:decrypt]
+    cmds:
+      - "bash scripts/test-harness.sh 443 $(grep LITELLM_MASTER_KEY compose/.env | cut -d '=' -f2)"
+
+  # -------------------------------------------------------------
+  # OPENTOFU / TAILSCALE NETWORK-AS-CODE TASKS
+  # -------------------------------------------------------------
+  tofu:init:
+    desc: "Initializes OpenTofu and downloads the Tailscale provider plugin"
+    dir: '{{.TOFU_DIR}}'
+    cmds:
+      - 'tofu init'
+
+  tofu:import:
+    desc: "Imports existing Tailscale ACLs into OpenTofu state"
+    deps: [secrets:decrypt]
+    dir: '{{.TOFU_DIR}}'
+    cmds:
+      - 'export $(grep -E "^TAILSCALE" ../compose/.env | xargs) && TF_VAR_tailscale_oauth_id="$TAILSCALE_OAUTH_ID" TF_VAR_tailscale_oauth_secret="$TAILSCALE_OAUTH_SECRET" tofu import tailscale_acl.network_acl acl'
+
+  tofu:plan:
+    desc: "Generates a dry-run execution plan previewing ACL changes"
+    deps: [secrets:decrypt]
+    dir: '{{.TOFU_DIR}}'
+    cmds:
+      - 'export $(grep -E "^TAILSCALE" ../compose/.env | xargs) && TF_VAR_tailscale_oauth_id="$TAILSCALE_OAUTH_ID" TF_VAR_tailscale_oauth_secret="$TAILSCALE_OAUTH_SECRET" tofu plan'
+
+  tofu:apply:
+    desc: "Applies declarative ACL changes directly to the live Tailscale mesh"
+    deps: [secrets:decrypt]
+    dir: '{{.TOFU_DIR}}'
+    cmds:
+      - 'export $(grep -E "^TAILSCALE" ../compose/.env | xargs) && TF_VAR_tailscale_oauth_id="$TAILSCALE_OAUTH_ID" TF_VAR_tailscale_oauth_secret="$TAILSCALE_OAUTH_SECRET" tofu apply -auto-approve'

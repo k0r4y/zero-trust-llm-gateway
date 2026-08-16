@@ -13,7 +13,6 @@ tasks:
     cmds:
       - 'python3 scripts/wizard.py'
 
-
   secrets:decrypt:
     desc: "Decrypts encrypted secrets into compose/.env using a robust parser"
     cmds:
@@ -46,6 +45,11 @@ tasks:
       - 'shellcheck scripts/*.sh templates/*.sh setup.sh 2>/dev/null || true'
       - 'echo " --> [PASS] Bash linting complete."'
 
+  sync-admin:
+    desc: "Ensure admin credentials match .env"
+    cmds:
+      - docker exec -e WEBUI_INIT_ADMIN_EMAIL=$(grep WEBUI_INIT_ADMIN_EMAIL compose/.env | cut -d= -f2) -e WEBUI_INIT_ADMIN_PASSWORD=$(grep WEBUI_INIT_ADMIN_PASSWORD compose/.env | cut -d= -f2) open-webui python3 /app/scripts/update_admin.py
+
   up:
     desc: "Decrypts secrets and starts the complete LLM platform stack"
     deps: [secrets:decrypt]
@@ -57,6 +61,7 @@ tasks:
       - 'echo " Web Chat Interface: https://localhost/"'
       - 'echo " OpenAI API Gateway: https://localhost/v1/"'
       - 'echo "============================================================"'
+      - task: sync-admin
 
   down:
     desc: "Stops and pauses all platform stack containers"
@@ -111,8 +116,7 @@ tasks:
         echo "============================================================"
         echo "Web Chat UI:   http://$(tailscale ip -4 2>/dev/null || echo 127.0.0.1)/"
         echo "API Base URL:  http://$(tailscale ip -4 2>/dev/null || echo 127.0.0.1):11434/v1"
-        echo "Admin Email:   $(grep ADMIN_EMAIL compose/.env | cut -d= -f2)"
-        echo "Admin Pass:    $(grep ADMIN_PASSWORD compose/.env | cut -d= -f2 | head -c 2)****$(grep ADMIN_PASSWORD compose/.env | cut -d= -f2 | tail -c 3)"
+        echo "Admin Email:   $(grep WEBUI_INIT_ADMIN_EMAIL compose/.env | cut -d= -f2)"
+        echo "Admin Pass:    $(grep WEBUI_INIT_ADMIN_PASSWORD compose/.env | cut -d= -f2 | head -c 2)****$(grep WEBUI_INIT_ADMIN_PASSWORD compose/.env | cut -d= -f2 | tail -c 3)"
         echo "Master Token:  $(grep LITELLM_MASTER_KEY compose/.env | cut -d= -f2 | head -c 4)****$(grep LITELLM_MASTER_KEY compose/.env | cut -d= -f2 | tail -c 5)"
         echo "============================================================"
-

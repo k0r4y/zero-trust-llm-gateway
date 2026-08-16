@@ -325,6 +325,7 @@ def generate_local_secrets():
     "WEBUI_INIT_ADMIN_EMAIL": "admin@localhost.local",
     "WEBUI_INIT_ADMIN_PASSWORD": secrets.token_urlsafe(16),
     "SEARXNG_SECRET_KEY": secrets.token_hex(32),
+    "JUPYTER_TOKEN": secrets.token_hex(32),
     }
     print(f"    [✔] LiteLLM master key:  {mask_token(secrets_map['LITELLM_MASTER_KEY'])}")
     print(f"    [✔] WebUI secret key:    {mask_token(secrets_map['WEBUI_SECRET_KEY'])}")
@@ -892,6 +893,35 @@ def write_env_file(env_vars):
         print(f"    [!] SOPS encryption failed: {e}")
         print("    [!] Your secrets are in compose/.env — add it to .gitignore manually!")
 
+def ensure_admin_sync():
+    """
+    Make sure the admin user in the database matches the new .env values.
+    Starts the container if it's not already running.
+    """
+    # Check if container exists and is running
+    result = subprocess.run(
+        ["docker", "inspect", "-f", "{{.State.Running}}", "open-webui"],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0 or result.stdout.strip() != "true":
+        print("🔄 Starting Open WebUI container...")
+        subprocess.run(["docker", "compose", "up", "-d", "open-webui"], check=True)
+        # Wait a few seconds for the database to be ready
+        time.sleep(5)
+
+    print("🔄 Syncing admin password with database...")
+    # Run the update script inside the container, passing the environment
+    subprocess.run(
+        [
+            "docker", "exec",
+            "-e", f"WEBUI_INIT_ADMIN_EMAIL={secrets_map['WEBUI_INIT_ADMIN_EMAIL']}",
+            "-e", f"WEBUI_INIT_ADMIN_PASSWORD={secrets_map['WEBUI_INIT_ADMIN_PASSWORD']}",
+            "open-webui",
+            "python3", "/app/scripts/update_admin.py"
+        ],
+        check=False
+    )
+    print("✅ Admin sync complete.")
 
 def start_stack():
     """Start the Docker Compose stack."""

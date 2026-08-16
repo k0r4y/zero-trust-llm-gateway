@@ -225,8 +225,8 @@ fi
 # NOTE: Port 8080 is not exposed to the host, so we use docker exec
 # with Python (guaranteed to exist in the open-webui container).
 log "Test 5: Admin account seeding..."
-ADMIN_EMAIL=$(grep ADMIN_EMAIL compose/.env | cut -d= -f2)
-ADMIN_PASS=$(grep ADMIN_PASSWORD compose/.env | cut -d= -f2)
+ADMIN_EMAIL=$(grep WEBUI_INIT_ADMIN_EMAIL compose/.env | cut -d= -f2)
+ADMIN_PASS=$(grep WEBUI_INIT_ADMIN_PASSWORD compose/.env | cut -d= -f2)
 
 LOGIN_OUTPUT=$(docker exec open-webui python3 -c "
 import urllib.request, json

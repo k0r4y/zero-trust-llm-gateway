@@ -53,6 +53,7 @@ services:
     env_file:
       - .env
     volumes:
+      - ../scripts:/app/scripts:ro
       - open-webui_data:/app/backend/data
     environment:
       - OPENAI_API_KEY=${LITELLM_MASTER_KEY}

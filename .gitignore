@@ -42,3 +42,4 @@ rotate-keys.sh
 # TLS private keys
 compose/certs/*.key
 tofu/.terraform/
+compose/certs/

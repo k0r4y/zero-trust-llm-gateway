@@ -320,14 +320,14 @@ def generate_local_secrets():
     """
     print("\n[*] Generating local secrets...")
     secrets_map = {
-        "LITELLM_MASTER_KEY": "sk-" + secrets.token_hex(16),
-        "WEBUI_SECRET_KEY": secrets.token_hex(32),
-        "ADMIN_EMAIL": "admin@localhost.local",
-        "ADMIN_PASSWORD": secrets.token_urlsafe(16),
+    "LITELLM_MASTER_KEY": "sk-" + secrets.token_hex(16),
+    "WEBUI_SECRET_KEY": secrets.token_hex(32),
+    "WEBUI_INIT_ADMIN_EMAIL": "admin@localhost.local",
+    "WEBUI_INIT_ADMIN_PASSWORD": secrets.token_urlsafe(16),
     }
     print(f"    [✔] LiteLLM master key:  {mask_token(secrets_map['LITELLM_MASTER_KEY'])}")
     print(f"    [✔] WebUI secret key:    {mask_token(secrets_map['WEBUI_SECRET_KEY'])}")
-    print(f"    [✔] Admin credentials:   {secrets_map['ADMIN_EMAIL']} / {'*' * 8}")
+    print(f"    [✔] Admin credentials:   {secrets_map['WEBUI_INIT_ADMIN_EMAIL']} / {'*' * 8}")
     return secrets_map
 
 
@@ -1108,7 +1108,7 @@ def main():
         sys.exit(1)
 
     pull_models(models)
-    seed_admin_account(local_secrets["ADMIN_EMAIL"], local_secrets["ADMIN_PASSWORD"])
+    seed_admin_account(local_secrets["WEBUI_INIT_ADMIN_EMAIL"], local_secrets["WEBUI_INIT_ADMIN_PASSWORD"])
 
     # PHASE 5: VERIFICATION & SUMMARY
     print_section("PHASE 5: Verification")
@@ -1130,8 +1130,8 @@ def main():
     print("=" * 70)
     print(f"\n  Web Chat UI:     {web_url}")
     print(f"  OpenAI API:      {api_url}")
-    print(f"  Admin Email:     {local_secrets['ADMIN_EMAIL']}")
-    print(f"  Admin Password:  {local_secrets['ADMIN_PASSWORD']}")
+    print(f"  Admin Email:     {local_secrets['WEBUI_INIT_ADMIN_EMAIL']}")
+    print(f"  Admin Password:  {local_secrets['WEBUI_INIT_ADMIN_PASSWORD']}")
     print(f"  Master Token:    {mask_token(local_secrets['LITELLM_MASTER_KEY'])}")
     print(f"\n  [!] SAVE THESE CREDENTIALS NOW. They will not be shown again.")
     # Generate a setup receipt file for the user
@@ -1145,8 +1145,8 @@ def main():
         rf.write(f"  Web Chat UI:  {web_url}\n")
         rf.write(f"  OpenAI API:   {api_url}\n\n")
         rf.write(f"Admin Account:\n")
-        rf.write(f"  Email:    {local_secrets['ADMIN_EMAIL']}\n")
-        rf.write(f"  Password: {local_secrets['ADMIN_PASSWORD']}\n\n")
+        rf.write(f"  Email:    {local_secrets['WEBUI_INIT_ADMIN_EMAIL']}\n")
+        rf.write(f"  Password: {local_secrets['WEBUI_INIT_ADMIN_PASSWORD']}\n\n")
         rf.write(f"API Token:\n")
         rf.write(f"  {local_secrets['LITELLM_MASTER_KEY']}\n\n")
         rf.write("[!] Store this file securely. Delete it after saving to your password manager.\n")

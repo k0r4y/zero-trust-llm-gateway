@@ -531,7 +531,7 @@ http {{
             proxy_read_timeout 300s;
         }}
 
-        location /api/ {{
+        location /ollama/ {{
             set $ollama_upstream http://ollama-server:11434;
             proxy_pass $ollama_upstream;
             proxy_set_header Host $host;
@@ -609,7 +609,7 @@ http {{
             proxy_read_timeout 300s;
         }}
 
-        location /api/ {{
+        location /ollama/ {{
             set $ollama_upstream http://ollama-server:11434;
             proxy_pass $ollama_upstream;
             proxy_set_header Host $host;
@@ -678,7 +678,7 @@ http {{
             proxy_read_timeout 300s;
         }}
 
-        location /api/ {{
+        location /ollama/ {{
             set $ollama_upstream http://ollama-server:11434;
             proxy_pass $ollama_upstream;
             proxy_set_header Host $host;

@@ -55,6 +55,7 @@ services:
     volumes:
       - open-webui_data:/app/backend/data
     environment:
+      - OPENAI_API_KEY=${LITELLM_MASTER_KEY}
       - OPENAI_API_BASE_URL=http://litellm-proxy:4000/v1
       - WEBUI_AUTH=true
       - ENABLE_SIGNUP=true

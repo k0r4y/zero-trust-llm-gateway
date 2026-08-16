@@ -15,10 +15,22 @@ tasks:
     cmds:
       - 'python3 scripts/wizard.py'
 
+  credentials:
+    desc: "Displays active API URLs and Bearer Tokens for client setup"
+    deps: [secrets:decrypt]
+    cmds:
+      - 'echo "============================================================"'
+      - 'echo "           ACTIVE PLATFORM CREDENTIALS                      "'
+      - 'echo "============================================================"'
+      - 'echo "Web Chat UI:   http://$(tailscale ip -4 2>/dev/null || echo 127.0.0.1):443/"'
+      - 'echo "API Base URL:  http://$(tailscale ip -4 2>/dev/null || echo 127.0.0.1):443/v1"'
+      - 'echo "Master Token:  $(grep LITELLM_MASTER_KEY compose/.env | cut -d "=" -f2)"'
+      - 'echo "============================================================"'
+
   secrets:decrypt:
     desc: "Decrypts encrypted secrets into compose/.env"
     cmds:
-      - "sops -d secrets.enc.yaml | sed 's/: /=/' > compose/.env"
+      - "sops -d secrets.enc.yaml | sed 's/: /=/' | tr -d '\"' > compose/.env"
     sources:
       - secrets.enc.yaml
     generates:
@@ -26,7 +38,7 @@ tasks:
     silent: true
 
   secrets:encrypt:
-    desc: "Encrypts compose/.env back into secrets.enc.yaml"
+    desc: "Encrypts raw secrets into secrets.enc.yaml"
     cmds:
       - "sops -e compose/.env > secrets.enc.yaml"
 
@@ -47,7 +59,7 @@ tasks:
       - 'echo "  --> [PASS] Nginx configuration valid."'
 
       - 'echo "[4/4] Linting Bash Scripts (shellcheck)..."'
-      - 'shellcheck scripts/*.sh templates/*.sh'
+      - 'shellcheck scripts/*.sh templates/*.sh setup.sh'
       - 'echo "  --> [PASS] All Bash scripts valid."'
       - 'echo "============================================================"'
       - 'echo "✔ All Linters Passed Successfully!"'
@@ -58,6 +70,7 @@ tasks:
     deps: [secrets:decrypt]
     cmds:
       - 'docker compose -f {{.COMPOSE_FILE}} up -d'
+      - 'sleep 3'
       - 'echo "============================================================"'
       - 'echo " LLM Platform is Up and Running!"'
       - 'echo "   Web Chat Interface: http://localhost:443/"'
@@ -80,9 +93,6 @@ tasks:
     cmds:
       - "bash scripts/test-harness.sh 443 $(grep LITELLM_MASTER_KEY compose/.env | cut -d '=' -f2)"
 
-  # -------------------------------------------------------------
-  # OPENTOFU / TAILSCALE NETWORK-AS-CODE TASKS
-  # -------------------------------------------------------------
   tofu:init:
     desc: "Initializes OpenTofu and downloads the Tailscale provider plugin"
     dir: '{{.TOFU_DIR}}'

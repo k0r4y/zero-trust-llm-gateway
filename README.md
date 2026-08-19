@@ -1,3 +1,6 @@
+### !!DO NOT USE IN PRODUCTION ENVIRONMENTS, STILL IN DEVELOPMENT AND NOT FULLY SECURED!!
+
+
 # Zero-Trust Local LLM Gateway
 
 A security-hardened, self-hosted LLM infrastructure running on NVIDIA GPUs via WSL2 and Docker Compose. Features an interactive setup wizard, automated client config generation, and a 20-test integration suite. Gated by Nginx ingress, OpenAI-compatible Bearer authentication via LiteLLM Proxy, and secured over a private Tailscale WireGuard mesh with declarative OpenTofu ACL policies.
